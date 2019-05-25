@@ -1,0 +1,10 @@
+[package]
+name = "spire_slayer"
+version = "0.1.0"
+authors = ["Justin Kur <JustinK97@hotmail.com>"]
+edition = "2018"
+
+[dependencies]
+lazy_static = "1.2.0"
+mcts = "0.2.0"
+rand = "^0.6"
