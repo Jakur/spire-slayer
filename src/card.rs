@@ -1,6 +1,7 @@
 use crate::actor::Actor;
 use crate::Battle;
 use lazy_static::lazy_static;
+use std::collections::HashMap;
 
 macro_rules! new_card {
     ($name:expr, $parent:expr, $($atr:ident = $set:expr),*) => {
@@ -52,6 +53,20 @@ lazy_static! {
             false,
         ));
         v
+    };
+    pub static ref NAMES: HashMap<usize, &'static str> = {
+        let mut h = HashMap::new();
+        for id in 0..CARDS.len() {
+            h.insert(id, CARDS[id].name);
+        }
+        h
+    };
+    pub static ref IDS: HashMap<&'static str, usize> = {
+        let mut h = HashMap::new();
+        for id in 0..CARDS.len() {
+            h.insert(CARDS[id].name, id);
+        }
+        h
     };
 }
 
@@ -194,7 +209,3 @@ impl CardTemplate {
         }
     }
 }
-
-/*macro_rules! new_card {
-
-}*/
