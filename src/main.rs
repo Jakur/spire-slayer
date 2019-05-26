@@ -1,30 +1,19 @@
-mod card;
-mod enemy;
-use lazy_static::{lazy_static};
-use card::{CardTemplate, CardType, Target, Effect};
+#[macro_use] mod card;
+mod actor;
+use card::{CARDS, CardTemplate, CardType, Target, Effect};
 use mcts::*;
 use mcts::tree_policy::*;
 use rand::Rng;
 use rand::rngs::SmallRng;
 use rand::{SeedableRng, XorShiftRng, FromEntropy};
-use enemy::JawWorm;
+use actor::{Actor, JawWorm};
 use std::mem;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-lazy_static! {
-    static ref CARDS: Vec<CardTemplate> = {
-        let mut v = Vec::new();
-        v.push(CardTemplate::new("Strike", CardType::Attack, Target::Single, vec![Effect::Attack(6)], 1, false, false));
-        v.push(CardTemplate::new("Defend", CardType::Skill, Target::Player, vec![Effect::Block(5)], 1, false, false));
-        v.push(CardTemplate::new("Survivor", CardType::Skill, Target::Player, vec![Effect::Block(8), Effect::Discard(1)], 1, false, false));
-        v.push(CardTemplate::new("Neutralize", CardType::Attack, Target::Single, vec![Effect::Attack(3), Effect::Weak(1)], 0, false, false));
-        v
-    };
-}
 
 #[derive(Clone, PartialEq)]
-struct Card {
+pub struct Card {
     id: usize,
     cost: i32,
 }
@@ -45,19 +34,22 @@ impl std::fmt::Debug for Card {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum Action {
-    Play(usize), //Play card in given slot
+pub enum Action {
+    Play(usize), // Play card in given slot
+    TargetPlay(usize, usize), // Play card in given slot directed at entity x
+    Discard(usize),
     EndTurn,
 }
 
 #[derive(Clone, Debug)]
-struct Battle {
+pub struct Battle {
     pub hand: Vec<Card>,
     pub draw: Vec<Card>,
     pub discard: Vec<Card>,
     pub exhaust: Vec<Card>,
     pub enemy: JawWorm,
-    pub slayer: card::Player,
+    pub slayer: actor::Player,
+    pub queue: Vec<Action>
 }
 
 impl Battle {
@@ -75,11 +67,12 @@ impl Battle {
             block: 0,
             strength: 0,
             intent: 0,
+            weak: 0,
             last_actions: Vec::new(),
             queue: Vec::new(),
         };
         enemy.set_intent();
-        let slayer = card::Player {
+        let slayer = actor::Player {
             health: 100,
             block: 0,
             energy: 3,
@@ -91,6 +84,7 @@ impl Battle {
             exhaust: Vec::new(),
             enemy,
             slayer,
+            queue: Vec::new(),
         }
     }
     fn draw_cards(&mut self, mut number: usize) {
@@ -115,6 +109,34 @@ impl Battle {
     }
     fn end_discard(&mut self) {
         self.discard.append(&mut self.hand);
+    }
+    pub fn apply_effect(&mut self, eff: &Effect, source_id: usize, target_id: usize) {
+        let scaled = match eff {
+            Effect::Attack(damage) => {
+                if source_id == 0 {
+                    self.slayer.scale_attack(*damage)
+                } else {
+                    self.enemy.scale_attack(*damage)
+                }
+            },
+            _ => 0,
+        };
+        let target: &mut Actor = {
+            if target_id == 0 {
+                &mut self.slayer
+            } else {
+                &mut self.enemy
+            }
+        };
+        match eff {
+            Effect::Attack(_) => {
+                target.take_damage(scaled)
+            },
+            Effect::Block(block) => {target.add_block(*block)},
+            Effect::Weak(weak) => {target.add_weak(*weak)},
+            Effect::Strength(strength) => {target.add_strength(*strength)},
+            Effect::Discard(discard) => {self.queue.push(Action::Discard(*discard))}
+        }
     }
 }
 
@@ -145,25 +167,28 @@ impl GameState for Battle {
             Action::Play(card_slot) => {
                 let card = self.hand.swap_remove(*card_slot);
                 let template: &CardTemplate = &CARDS[card.id];
-                for effect in template.effects.iter() {
-                    match effect {
-                        Effect::Attack(damage) => { self.enemy.take_damage(*damage) },
-                        Effect::Block(block) => { self.slayer.add_block(*block) },
-                        _ => {},
-                    }
+                let source_id = 0;
+                for pair in template.effects.iter() {
+                    let target_id = match pair.target {
+                        Target::Player => {source_id},
+                        Target::Single => {1},
+                        Target::Multi => {unimplemented!()},
+                    };
+                    self.apply_effect(&pair.effect, source_id, target_id)
                 }
                 self.slayer.energy -= card.cost;
                 self.discard.push(card);
             },
             Action::EndTurn => {
                 let opp_actions = self.enemy.act();
-                for act in opp_actions {
-                    match act {
-                        Effect::Attack(damage) => {self.slayer.take_damage(damage)},
-                        Effect::Block(block) => {self.enemy.add_block(block)},
-                        Effect::Strength(strength) => {self.enemy.strength += strength as i32},
-                        _ => {},
-                    }
+                for pair in opp_actions {
+                    let source_id = 1; // Todo variable
+                    let target_id = match pair.target {
+                        Target::Player => {source_id},
+                        Target::Single => {0},
+                        Target::Multi => {unimplemented!()}
+                    };
+                    self.apply_effect(&pair.effect, source_id, target_id);
                 }
                 self.end_discard();
                 self.draw_cards(5);
@@ -171,7 +196,8 @@ impl GameState for Battle {
                 self.slayer.block = 0;
                 self.enemy.block = 0;
                 self.enemy.set_intent();
-            }
+            },
+            _ => {},
         }
     }
 }
@@ -290,7 +316,7 @@ fn main() {
                                 Card::new(0, 1), Card::new(0, 1), Card::new(0, 1)]);
     let mut mcts = MCTSManager::new(game, SpireMCTS,
                                     GameEvaluator, MyUCT::new(50.0));
-    mcts.playout_n_parallel(2000, 4);
+    mcts.playout_n_parallel(10000, 4);
     mcts.tree().debug_moves();
     dbg!(mcts.principal_variation(5));
     dbg!(mcts.principal_variation_states(5));
@@ -311,5 +337,9 @@ fn main() {
 //        println!("{}", mean_action_value);
 //        println!("{}", 50.0 * explore_term + mean_action_value)
 //    }
+    //let example = card::Strike::new(1);
+    //println!("{}", std::mem::size_of_val(&example));
+
+    pair![Attack, Single, 6];
     println!("Hello, world!");
 }
