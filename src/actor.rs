@@ -1,8 +1,8 @@
-use rand::seq::SliceRandom;
+use crate::card::{Effect, EffectPair, Target};
 use rand::rngs::SmallRng;
+use rand::seq::SliceRandom;
 use rand::FromEntropy;
 use std::mem;
-use crate::card::{Target, Effect, EffectPair};
 
 pub trait Actor: std::fmt::Debug {
     fn set_intent(&mut self);
@@ -52,7 +52,6 @@ impl Actor for Player {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct JawWorm {
     pub health: i32,
@@ -61,7 +60,7 @@ pub struct JawWorm {
     pub weak: i32,
     pub intent: usize,
     pub last_actions: Vec<usize>,
-    pub queue: Vec<EffectPair>
+    pub queue: Vec<EffectPair>,
 }
 
 impl Actor for JawWorm {
@@ -71,29 +70,35 @@ impl Actor for JawWorm {
         let choices = [0, 1, 2];
         let mut probs = [45, 30, 25];
         if count >= 2 {
-            if self.last_actions[count-1] == 2 && self.last_actions[count-2] == 2 { //No bellow
+            if self.last_actions[count - 1] == 2 && self.last_actions[count - 2] == 2 {
+                //No bellow
                 probs[2] -= 25;
-            } else if self.last_actions[count-1] == 0 && self.last_actions[count-2] == 0 {
+            } else if self.last_actions[count - 1] == 0 && self.last_actions[count - 2] == 0 {
                 probs[0] -= 45;
-            } else if count >= 3 && self.last_actions[count-1] == 1 && self.last_actions[count-2] == 1 &&
-                self.last_actions[count-3] == 1 {
+            } else if count >= 3
+                && self.last_actions[count - 1] == 1
+                && self.last_actions[count - 2] == 1
+                && self.last_actions[count - 3] == 1
+            {
                 probs[1] -= 30;
             }
         }
-        let choice = choices.choose_weighted(&mut rng, |choice| probs[*choice]).unwrap();
+        let choice = choices
+            .choose_weighted(&mut rng, |choice| probs[*choice])
+            .unwrap();
         match *choice {
             0 => {
                 self.queue.push(pair![Attack, Single, 12]);
-            },
+            }
             1 => {
                 self.queue.push(pair![Attack, Single, 7]);
                 self.queue.push(pair![Block, Player, 5]);
-            },
+            }
             2 => {
                 self.queue.push(pair![Strength, Player, 5]);
                 self.queue.push(pair![Block, Player, 9]);
             }
-            _ => {},
+            _ => {}
         }
     }
     fn take_damage(&mut self, damage: i32) {
@@ -130,5 +135,4 @@ impl JawWorm {
         let queue = mem::replace(&mut self.queue, Vec::new());
         queue
     }
-
 }

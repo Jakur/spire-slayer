@@ -1,6 +1,6 @@
-use lazy_static::{lazy_static};
 use crate::actor::Actor;
 use crate::Battle;
+use lazy_static::lazy_static;
 
 macro_rules! new_card {
     ($name:expr, $parent:expr, $($atr:ident = $set:expr),*) => {
@@ -22,10 +22,35 @@ macro_rules! pair {
 lazy_static! {
     pub static ref CARDS: Vec<CardTemplate> = {
         let mut v = Vec::new();
-        v.push(CardTemplate::new("Strike", CardType::Attack, vec![pair![Attack, Single, 6]], 1, false, false));
-        v.push(CardTemplate::new("Defend", CardType::Skill, vec![pair![Block, Player, 5]], 1, false, false));
-        v.push(new_card!["Survivor", &v[1], effects = vec![pair![Block, Player, 8], pair![Discard, Player, 1]]]);
-        v.push(CardTemplate::new("Neutralize", CardType::Attack, vec![pair![Attack, Single, 3], pair![Weak, Single, 1]], 0, false, false));
+        v.push(CardTemplate::new(
+            "Strike",
+            CardType::Attack,
+            vec![pair![Attack, Single, 6]],
+            1,
+            false,
+            false,
+        ));
+        v.push(CardTemplate::new(
+            "Defend",
+            CardType::Skill,
+            vec![pair![Block, Player, 5]],
+            1,
+            false,
+            false,
+        ));
+        v.push(new_card![
+            "Survivor",
+            &v[1],
+            effects = vec![pair![Block, Player, 8], pair![Discard, Player, 1]]
+        ]);
+        v.push(CardTemplate::new(
+            "Neutralize",
+            CardType::Attack,
+            vec![pair![Attack, Single, 3], pair![Weak, Single, 1]],
+            0,
+            false,
+            false,
+        ));
         v
     };
 }
@@ -55,7 +80,7 @@ macro_rules! attack {
                     env.play_card_effect($eff, target_id);
                 )*
             }
-            fn get_type(&self) -> CardType {CardType::Attack} 
+            fn get_type(&self) -> CardType {CardType::Attack}
             fn get_name(&self) -> &'static str {stringify!($name)}
         }
     };
@@ -80,7 +105,7 @@ macro_rules! skill {
                     env.play_card_effect($eff, target_id);
                 )*
             }
-            fn get_type(&self) -> CardType {CardType::Skill} 
+            fn get_type(&self) -> CardType {CardType::Skill}
             fn get_name(&self) -> &'static str {stringify!($name)}
         }
     };
@@ -99,10 +124,7 @@ pub struct EffectPair {
 
 impl EffectPair {
     pub fn new(effect: Effect, target: Target) -> EffectPair {
-        EffectPair {
-            effect,
-            target,
-        }
+        EffectPair { effect, target }
     }
     pub fn new_single(eff: Effect) -> EffectPair {
         Self::new(eff, Target::Single)
@@ -154,8 +176,14 @@ pub struct CardTemplate {
 }
 
 impl CardTemplate {
-    pub fn new(name: &'static str, ty: CardType, effects: Vec<EffectPair>, base_cost: u32,
-        ethereal: bool, exhaust: bool) -> CardTemplate {
+    pub fn new(
+        name: &'static str,
+        ty: CardType,
+        effects: Vec<EffectPair>,
+        base_cost: u32,
+        ethereal: bool,
+        exhaust: bool,
+    ) -> CardTemplate {
         CardTemplate {
             name,
             ty,

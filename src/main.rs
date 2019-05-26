@@ -1,16 +1,16 @@
-#[macro_use] mod card;
+#[macro_use]
+mod card;
 mod actor;
-use card::{CARDS, CardTemplate, CardType, Target, Effect};
-use mcts::*;
-use mcts::tree_policy::*;
-use rand::Rng;
-use rand::rngs::SmallRng;
-use rand::{SeedableRng, XorShiftRng, FromEntropy};
 use actor::{Actor, JawWorm};
+use card::{CardTemplate, CardType, Effect, Target, CARDS};
+use mcts::tree_policy::*;
+use mcts::*;
+use rand::rngs::SmallRng;
+use rand::Rng;
+use rand::{FromEntropy, SeedableRng, XorShiftRng};
 use std::mem;
 use std::sync::Arc;
 use std::sync::Mutex;
-
 
 #[derive(Clone, PartialEq)]
 pub struct Card {
@@ -20,10 +20,7 @@ pub struct Card {
 
 impl Card {
     fn new(id: usize, cost: i32) -> Card {
-        Card {
-            id,
-            cost,
-        }
+        Card { id, cost }
     }
 }
 
@@ -35,7 +32,7 @@ impl std::fmt::Debug for Card {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Action {
-    Play(usize), // Play card in given slot
+    Play(usize),              // Play card in given slot
     TargetPlay(usize, usize), // Play card in given slot directed at entity x
     Discard(usize),
     EndTurn,
@@ -49,7 +46,7 @@ pub struct Battle {
     pub exhaust: Vec<Card>,
     pub enemy: JawWorm,
     pub slayer: actor::Player,
-    pub queue: Vec<Action>
+    pub queue: Vec<Action>,
 }
 
 impl Battle {
@@ -118,7 +115,7 @@ impl Battle {
                 } else {
                     self.enemy.scale_attack(*damage)
                 }
-            },
+            }
             _ => 0,
         };
         let target: &mut Actor = {
@@ -129,13 +126,11 @@ impl Battle {
             }
         };
         match eff {
-            Effect::Attack(_) => {
-                target.take_damage(scaled)
-            },
-            Effect::Block(block) => {target.add_block(*block)},
-            Effect::Weak(weak) => {target.add_weak(*weak)},
-            Effect::Strength(strength) => {target.add_strength(*strength)},
-            Effect::Discard(discard) => {self.queue.push(Action::Discard(*discard))}
+            Effect::Attack(_) => target.take_damage(scaled),
+            Effect::Block(block) => target.add_block(*block),
+            Effect::Weak(weak) => target.add_weak(*weak),
+            Effect::Strength(strength) => target.add_strength(*strength),
+            Effect::Discard(discard) => self.queue.push(Action::Discard(*discard)),
         }
     }
 }
@@ -170,23 +165,23 @@ impl GameState for Battle {
                 let source_id = 0;
                 for pair in template.effects.iter() {
                     let target_id = match pair.target {
-                        Target::Player => {source_id},
-                        Target::Single => {1},
-                        Target::Multi => {unimplemented!()},
+                        Target::Player => source_id,
+                        Target::Single => 1,
+                        Target::Multi => unimplemented!(),
                     };
                     self.apply_effect(&pair.effect, source_id, target_id)
                 }
                 self.slayer.energy -= card.cost;
                 self.discard.push(card);
-            },
+            }
             Action::EndTurn => {
                 let opp_actions = self.enemy.act();
                 for pair in opp_actions {
                     let source_id = 1; // Todo variable
                     let target_id = match pair.target {
-                        Target::Player => {source_id},
-                        Target::Single => {0},
-                        Target::Multi => {unimplemented!()}
+                        Target::Player => source_id,
+                        Target::Single => 0,
+                        Target::Multi => unimplemented!(),
                     };
                     self.apply_effect(&pair.effect, source_id, target_id);
                 }
@@ -196,8 +191,8 @@ impl GameState for Battle {
                 self.slayer.block = 0;
                 self.enemy.block = 0;
                 self.enemy.set_intent();
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 }
@@ -207,18 +202,29 @@ struct GameEvaluator;
 impl Evaluator<SpireMCTS> for GameEvaluator {
     type StateEvaluation = i64;
 
-    fn evaluate_new_state(&self, state: &Battle, moves: &Vec<Action>,
-                          _: Option<SearchHandle<SpireMCTS>>) -> (Vec<()>, i64) {
+    fn evaluate_new_state(
+        &self,
+        state: &Battle,
+        moves: &Vec<Action>,
+        _: Option<SearchHandle<SpireMCTS>>,
+    ) -> (Vec<()>, i64) {
         (vec![(); moves.len()], state.slayer.health as i64)
     }
 
-    fn evaluate_existing_state(&self, state: &<SpireMCTS as MCTS>::State, existing_evaln:
-        &Self::StateEvaluation, handle: SearchHandle<SpireMCTS>) -> Self::StateEvaluation {
+    fn evaluate_existing_state(
+        &self,
+        state: &<SpireMCTS as MCTS>::State,
+        existing_evaln: &Self::StateEvaluation,
+        handle: SearchHandle<SpireMCTS>,
+    ) -> Self::StateEvaluation {
         state.slayer.health as i64
     }
 
-    fn interpret_evaluation_for_player(&self, evaluation: &Self::StateEvaluation, player:
-        &<<SpireMCTS as MCTS>::State as GameState>::Player) -> i64 {
+    fn interpret_evaluation_for_player(
+        &self,
+        evaluation: &Self::StateEvaluation,
+        player: &<<SpireMCTS as MCTS>::State as GameState>::Player,
+    ) -> i64 {
         *evaluation
     }
 }
@@ -240,50 +246,61 @@ pub struct MyUCT {
 
 impl MyUCT {
     pub fn new(exploration_constant: f64) -> Self {
-        Self {exploration_constant}
+        Self {
+            exploration_constant,
+        }
     }
 }
 
-
-impl<Spec: MCTS<TreePolicy=Self>> TreePolicy<Spec> for MyUCT
-{
+impl<Spec: MCTS<TreePolicy = Self>> TreePolicy<Spec> for MyUCT {
     type ThreadLocalData = PolicyRng;
     type MoveEvaluation = ();
 
-    fn choose_child<'a, MoveIter>(&self, moves: MoveIter, mut handle: SearchHandle<Spec>) -> &'a MoveInfo<Spec>
-        where MoveIter: Iterator<Item=&'a MoveInfo<Spec>> + Clone
+    fn choose_child<'a, MoveIter>(
+        &self,
+        moves: MoveIter,
+        mut handle: SearchHandle<Spec>,
+    ) -> &'a MoveInfo<Spec>
+    where
+        MoveIter: Iterator<Item = &'a MoveInfo<Spec>> + Clone,
     {
         let total_visits = moves.clone().map(|x| x.visits()).sum::<u64>();
         let adjusted_total = (total_visits + 1) as f64;
         let ln_adjusted_total = adjusted_total.ln();
-        handle.thread_local_data().policy_data.select_by_key(moves, |mov| {
-            let sum_rewards = mov.sum_rewards();
-            let child_visits = mov.visits();
-            // http://mcts.ai/pubs/mcts-survey-master.pdf
-            if child_visits == 0 {
-                std::f64::INFINITY
-            } else {
-                let explore_term = 2.0 * (ln_adjusted_total / child_visits as f64).sqrt();
-                let mean_action_value = sum_rewards as f64 / child_visits as f64;
-                self.exploration_constant * explore_term + mean_action_value
-            }
-        }).unwrap()
+        handle
+            .thread_local_data()
+            .policy_data
+            .select_by_key(moves, |mov| {
+                let sum_rewards = mov.sum_rewards();
+                let child_visits = mov.visits();
+                // http://mcts.ai/pubs/mcts-survey-master.pdf
+                if child_visits == 0 {
+                    std::f64::INFINITY
+                } else {
+                    let explore_term = 2.0 * (ln_adjusted_total / child_visits as f64).sqrt();
+                    let mean_action_value = sum_rewards as f64 / child_visits as f64;
+                    self.exploration_constant * explore_term + mean_action_value
+                }
+            })
+            .unwrap()
     }
 }
 
 #[derive(Clone)]
 pub struct PolicyRng {
-    rng: XorShiftRng
+    rng: XorShiftRng,
 }
 
 impl PolicyRng {
     pub fn new() -> Self {
         let rng = SeedableRng::from_seed([1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4]);
-        Self {rng}
+        Self { rng }
     }
 
     pub fn select_by_key<T, Iter, KeyFn>(&mut self, elts: Iter, mut key_fn: KeyFn) -> Option<T>
-        where Iter: Iterator<Item=T>, KeyFn: FnMut(&T) -> f64
+    where
+        Iter: Iterator<Item = T>,
+        KeyFn: FnMut(&T) -> f64,
     {
         let mut choice = None;
         let mut num_optimal: u32 = 0;
@@ -312,31 +329,35 @@ impl Default for PolicyRng {
 }
 
 fn main() {
-    let game = Battle::new(vec![Card::new(1, 1), Card::new(1, 1),
-                                Card::new(0, 1), Card::new(0, 1), Card::new(0, 1)]);
-    let mut mcts = MCTSManager::new(game, SpireMCTS,
-                                    GameEvaluator, MyUCT::new(50.0));
+    let game = Battle::new(vec![
+        Card::new(1, 1),
+        Card::new(1, 1),
+        Card::new(0, 1),
+        Card::new(0, 1),
+        Card::new(0, 1),
+    ]);
+    let mut mcts = MCTSManager::new(game, SpireMCTS, GameEvaluator, MyUCT::new(50.0));
     mcts.playout_n_parallel(10000, 4);
     mcts.tree().debug_moves();
     dbg!(mcts.principal_variation(5));
     dbg!(mcts.principal_variation_states(5));
     let root = mcts.tree().root_node();
-//    for mov in root.moves() {
-//        dbg!(mov);
-//        let adjusted_total = 2000 as f64;
-//        let ln_adjusted_total = (2001 as f64).ln();
-//        let sum_rewards = mov.sum_rewards();
-//        let child_visits = mov.visits();
-//        // http://mcts.ai/pubs/mcts-survey-master.pdf
-//        let explore_term = if child_visits == 0 {
-//            std::f64::INFINITY
-//        } else {
-//            2.0 * (ln_adjusted_total / child_visits as f64).sqrt()
-//        };
-//        let mean_action_value = sum_rewards as f64 / adjusted_total;
-//        println!("{}", mean_action_value);
-//        println!("{}", 50.0 * explore_term + mean_action_value)
-//    }
+    //    for mov in root.moves() {
+    //        dbg!(mov);
+    //        let adjusted_total = 2000 as f64;
+    //        let ln_adjusted_total = (2001 as f64).ln();
+    //        let sum_rewards = mov.sum_rewards();
+    //        let child_visits = mov.visits();
+    //        // http://mcts.ai/pubs/mcts-survey-master.pdf
+    //        let explore_term = if child_visits == 0 {
+    //            std::f64::INFINITY
+    //        } else {
+    //            2.0 * (ln_adjusted_total / child_visits as f64).sqrt()
+    //        };
+    //        let mean_action_value = sum_rewards as f64 / adjusted_total;
+    //        println!("{}", mean_action_value);
+    //        println!("{}", 50.0 * explore_term + mean_action_value)
+    //    }
     //let example = card::Strike::new(1);
     //println!("{}", std::mem::size_of_val(&example));
 
