@@ -24,14 +24,6 @@ lazy_static! {
     pub static ref CARDS: Vec<CardTemplate> = {
         let mut v = Vec::new();
         v.push(CardTemplate::new(
-            "Strike",
-            CardType::Attack,
-            vec![pair![Attack, Single, 6]],
-            1,
-            false,
-            false,
-        ));
-        v.push(CardTemplate::new(
             "Defend",
             CardType::Skill,
             vec![pair![Block, Player, 5]],
@@ -39,11 +31,6 @@ lazy_static! {
             false,
             false,
         ));
-        v.push(new_card![
-            "Survivor",
-            &v[1],
-            effects = vec![pair![Block, Player, 8], pair![Discard, Player, 1]]
-        ]);
         v.push(CardTemplate::new(
             "Neutralize",
             CardType::Attack,
@@ -52,6 +39,24 @@ lazy_static! {
             false,
             false,
         ));
+        v.push(CardTemplate::new(
+            "Strike",
+            CardType::Attack,
+            vec![pair![Attack, Single, 6]],
+            1,
+            false,
+            false,
+        ));
+        v.push(new_card![
+            "Survivor",
+            &v[0],
+            effects = vec![pair![Block, Player, 8], pair![Discard, Player, 1]]
+        ]);
+        v.push(new_card![
+            "Acrobatics",
+            &v[0],
+            effects = vec![pair![Draw, Player, 3], pair![Discard, Player, 1]]
+        ]);
         v
     };
     pub static ref NAMES: HashMap<usize, &'static str> = {
@@ -169,6 +174,7 @@ pub enum Effect {
     Block(i32),
     Attack(i32),
     Weak(i32),
+    Draw(usize),
     Discard(usize),
     Strength(i32),
 }

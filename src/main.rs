@@ -9,8 +9,6 @@ use rand::rngs::SmallRng;
 use rand::Rng;
 use rand::{FromEntropy, SeedableRng, XorShiftRng};
 use std::mem;
-use std::sync::Arc;
-use std::sync::Mutex;
 
 #[derive(Clone, PartialEq)]
 pub struct Card {
@@ -131,6 +129,7 @@ impl Battle {
             Effect::Weak(weak) => target.add_weak(*weak),
             Effect::Strength(strength) => target.add_strength(*strength),
             Effect::Discard(discard) => self.queue.push(Action::Discard(*discard)),
+            Effect::Draw(card_count) => self.draw_cards(*card_count),
         }
     }
 }
@@ -149,12 +148,28 @@ impl GameState for Battle {
             return vec![]; //Terminal condition
         }
         let mut actions = Vec::new();
-        let max_cost = self.slayer.energy;
-        for (index, _c) in self.hand.iter().filter(|c| c.cost <= max_cost).enumerate() {
-            actions.push(Action::Play(index));
+        if self.queue.is_empty() {
+            let mut actions = Vec::new();
+            let max_cost = self.slayer.energy;
+            for (index, _c) in self.hand.iter().filter(|c| c.cost <= max_cost).enumerate() {
+                actions.push(Action::Play(index));
+            }
+            actions.push(Action::EndTurn);
+            actions
+        } else {
+            let head = &self.queue[0];
+            match head {
+                Action::Discard(_) => {
+                    for (index, _c) in self.hand.iter().enumerate() {
+                        actions.push(Action::Discard(index));
+                    }
+                }
+                _ => {
+                    unimplemented!();
+                }
+            }
+            actions
         }
-        actions.push(Action::EndTurn);
-        actions
     }
 
     fn make_move(&mut self, mov: &<Self as GameState>::Move) {
@@ -192,7 +207,23 @@ impl GameState for Battle {
                 self.enemy.block = 0;
                 self.enemy.set_intent();
             }
-            _ => {}
+            Action::Discard(slot) => {
+                let out = self.hand.swap_remove(*slot);
+                self.discard.push(out);
+                if let Some(Action::Discard(num)) = self.queue.first() {
+                    let res = num - 1;
+                    if res > 0 {
+                        // Continue discarding
+                        self.queue[0] = Action::Discard(res);
+                    } else {
+                        // Queue should always be small so overhead is okay
+                        self.queue.remove(0);
+                    }
+                } else {
+                    panic!("Unknown path into discard action"); // Todo more graceful
+                }
+            }
+            _ => unimplemented!(),
         }
     }
 }
@@ -339,9 +370,9 @@ fn main() {
     let mut mcts = MCTSManager::new(game, SpireMCTS, GameEvaluator, MyUCT::new(50.0));
     mcts.playout_n_parallel(10000, 4);
     mcts.tree().debug_moves();
-    dbg!(mcts.principal_variation(5));
-    dbg!(mcts.principal_variation_states(5));
-    let root = mcts.tree().root_node();
+    //dbg!(mcts.principal_variation(5));
+    //dbg!(mcts.principal_variation_states(5));
+    //let root = mcts.tree().root_node();
     //    for mov in root.moves() {
     //        dbg!(mov);
     //        let adjusted_total = 2000 as f64;
@@ -360,7 +391,5 @@ fn main() {
     //    }
     //let example = card::Strike::new(1);
     //println!("{}", std::mem::size_of_val(&example));
-
-    pair![Attack, Single, 6];
     println!("Hello, world!");
 }
