@@ -81,61 +81,6 @@ pub trait Playable: std::fmt::Debug {
     fn get_name(&self) -> &'static str;
 }
 
-macro_rules! attack {
-    ($name:ident, $($eff:expr),*) => {
-        #[derive(Clone, Debug, PartialEq)]
-        pub struct $name {
-            pub cost: i32
-        }
-        impl $name {
-            pub fn new(cost: i32) -> $name {
-                $name {
-                    cost,
-                }
-            }
-        }
-        impl Playable for $name {
-            fn play(&self, env: &mut Battle, target_id: Option<usize>) {
-                $(
-                    env.play_card_effect($eff, target_id);
-                )*
-            }
-            fn get_type(&self) -> CardType {CardType::Attack}
-            fn get_name(&self) -> &'static str {stringify!($name)}
-        }
-    };
-}
-
-macro_rules! skill {
-    ($name:ident, $($eff:expr),*) => {
-        #[derive(Clone, Debug, PartialEq)]
-        pub struct $name {
-            pub cost: i32
-        }
-        impl $name {
-            pub fn new(cost: i32) -> $name {
-                $name {
-                    cost,
-                }
-            }
-        }
-        impl Playable for $name {
-            fn play(&self, env: &mut Battle, target_id: Option<usize>) {
-                $(
-                    env.play_card_effect($eff, target_id);
-                )*
-            }
-            fn get_type(&self) -> CardType {CardType::Skill}
-            fn get_name(&self) -> &'static str {stringify!($name)}
-        }
-    };
-}
-
-//attack![Strike, EffectPair::new_single(Effect::Attack(6))];
-//skill![Defend, EffectPair::new_player(Effect::Block(5))];
-//skill![Survivor, EffectPair::new_player(Effect::Block(8)), EffectPair::new_player(Effect::Discard(1))];
-//attack![Neutralize, EffectPair::new_single(Effect::Attack(3)), EffectPair::new_single(Effect::Weak(1))];
-
 #[derive(Debug, Clone)]
 pub struct EffectPair {
     pub effect: Effect,

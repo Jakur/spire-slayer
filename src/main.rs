@@ -374,6 +374,10 @@ fn simulate_battle(mut battle: Battle) {
         dbg!(&best_move);
         battle.make_move(&best_move);
     }
+    println!(
+        "Slayer: {}, JawWorm: {}",
+        battle.slayer.health, battle.enemy.health
+    );
 }
 
 fn main() {
@@ -385,26 +389,5 @@ fn main() {
         Card::new(0, 1),
     ]);
     simulate_battle(battle);
-    //dbg!(mcts.principal_variation(5));
-    //dbg!(mcts.principal_variation_states(5));
-    //let root = mcts.tree().root_node();
-    //    for mov in root.moves() {
-    //        dbg!(mov);
-    //        let adjusted_total = 2000 as f64;
-    //        let ln_adjusted_total = (2001 as f64).ln();
-    //        let sum_rewards = mov.sum_rewards();
-    //        let child_visits = mov.visits();
-    //        // http://mcts.ai/pubs/mcts-survey-master.pdf
-    //        let explore_term = if child_visits == 0 {
-    //            std::f64::INFINITY
-    //        } else {
-    //            2.0 * (ln_adjusted_total / child_visits as f64).sqrt()
-    //        };
-    //        let mean_action_value = sum_rewards as f64 / adjusted_total;
-    //        println!("{}", mean_action_value);
-    //        println!("{}", 50.0 * explore_term + mean_action_value)
-    //    }
-    //let example = card::Strike::new(1);
-    //println!("{}", std::mem::size_of_val(&example));
-    println!("Hello, world!");
+    println!("Battle concluded!");
 }
