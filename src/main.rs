@@ -132,6 +132,13 @@ impl Battle {
             Effect::Draw(card_count) => self.draw_cards(*card_count),
         }
     }
+    pub fn is_terminal(&self) -> bool {
+        if self.enemy.health <= 0 || self.slayer.health <= 0 {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl GameState for Battle {
@@ -144,7 +151,7 @@ impl GameState for Battle {
     }
 
     fn available_moves(&self) -> <Self as GameState>::MoveList {
-        if self.enemy.health <= 0 || self.slayer.health <= 0 {
+        if self.is_terminal() {
             return vec![]; //Terminal condition
         }
         let mut actions = Vec::new();
@@ -359,17 +366,25 @@ impl Default for PolicyRng {
     }
 }
 
+fn simulate_battle(mut battle: Battle) {
+    while !battle.is_terminal() {
+        let mut mcts = MCTSManager::new(battle.clone(), SpireMCTS, GameEvaluator, MyUCT::new(50.0));
+        mcts.playout_n_parallel(10000, 4);
+        let best_move = mcts.best_move().expect("Error computing best move");
+        dbg!(&best_move);
+        battle.make_move(&best_move);
+    }
+}
+
 fn main() {
-    let game = Battle::new(vec![
+    let battle = Battle::new(vec![
         Card::new(1, 1),
         Card::new(1, 1),
         Card::new(0, 1),
         Card::new(0, 1),
         Card::new(0, 1),
     ]);
-    let mut mcts = MCTSManager::new(game, SpireMCTS, GameEvaluator, MyUCT::new(50.0));
-    mcts.playout_n_parallel(10000, 4);
-    mcts.tree().debug_moves();
+    simulate_battle(battle);
     //dbg!(mcts.principal_variation(5));
     //dbg!(mcts.principal_variation_states(5));
     //let root = mcts.tree().root_node();
