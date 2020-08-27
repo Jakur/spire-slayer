@@ -6,5 +6,5 @@ edition = "2018"
 
 [dependencies]
 lazy_static = "1.2.0"
-mcts = "0.2.0"
 rand = "^0.6"
+tinyvec = "^0.4"
